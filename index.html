@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Регистрация — Fimoz Мессенджер</title>
+    <meta name="color-scheme" content="dark" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card" aria-labelledby="title">
+        <header class="card__header">
+          <div class="logo" aria-hidden="true">
+            <div class="logo__mark"></div>
+            <div class="logo__mark"></div>
+            <div class="logo__mark"></div>
+          </div>
+          <h1 id="title" class="title">Создать аккаунт</h1>
+          <p class="subtitle">Добро пожаловать! Заполни поля ниже, чтобы продолжить.</p>
+        </header>
+
+        <form id="registerForm" class="form" novalidate>
+          <div class="field">
+            <label class="label" for="email">Почта <span class="req">*</span></label>
+            <input
+              class="input"
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              inputmode="email"
+              placeholder="name@example.com"
+              required
+            />
+            <p class="hint" id="emailHint" aria-live="polite"></p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="username">Имя пользователя <span class="req">*</span></label>
+            <input
+              class="input"
+              id="username"
+              name="username"
+              type="text"
+              autocomplete="username"
+              placeholder="например: serge"
+              minlength="2"
+              maxlength="32"
+              required
+            />
+            <p class="hint" id="usernameHint" aria-live="polite"></p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="password">Пароль <span class="req">*</span></label>
+            <div class="inputRow">
+              <input
+                class="input"
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Минимум 8 символов"
+                minlength="8"
+                required
+              />
+              <button class="ghostBtn" type="button" id="togglePassword" aria-label="Показать пароль">
+                Показать
+              </button>
+            </div>
+            <p class="hint" id="passwordHint" aria-live="polite"></p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="confirm">Повтори пароль <span class="req">*</span></label>
+            <input
+              class="input"
+              id="confirm"
+              name="confirm"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Повтори пароль"
+              required
+            />
+            <p class="hint" id="confirmHint" aria-live="polite"></p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="dob">Дата рождения</label>
+            <input class="input" id="dob" name="dob" type="date" />
+            <p class="hint" id="dobHint" aria-live="polite"></p>
+          </div>
+
+          <label class="check">
+            <input id="terms" name="terms" type="checkbox" />
+            <span>Я принимаю условия и политику конфиденциальности</span>
+          </label>
+
+          <button class="primaryBtn" type="submit" id="submitBtn">Продолжить</button>
+
+          <p class="small">
+            Уже есть аккаунт?
+            <a class="link" href="./login.html" id="loginLink">Войти</a>
+          </p>
+        </form>
+
+        <footer class="card__footer">
+          <p class="micro">
+            Это прототип регистрации. Дальше подключим настоящий backend, верификацию почты и логин.
+          </p>
+        </footer>
+      </section>
+
+      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    </main>
+
+    <script src="./db.js"></script>
+    <script src="./app.js"></script>
+    <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJCPwsppXrhAYvfMKhQu0qvexadm1bPjc",
+    authDomain: "fimozmessenger.firebaseapp.com",
+    projectId: "fimozmessenger",
+    storageBucket: "fimozmessenger.firebasestorage.app",
+    messagingSenderId: "378677630588",
+    appId: "1:378677630588:web:d5e60e35a74565f0e69bf9"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+  </body>
+</html>
