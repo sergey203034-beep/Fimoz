@@ -1,16 +1,14 @@
-// В самом начале файла, сразу после <script src="...supabase..."></script> в HTML
-
+// 1. Инициализация (в самом верху твоего файла)
 const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
+const SUPABASE_ANON_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG'; // Твой ключ
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Получаем данные из сессии, которую мы создали в login.js
 const session = JSON.parse(sessionStorage.getItem("proto_session") || "{}");
 const currentUserId = session.userId;
 const currentUsername = session.username;
 
 let messagesChannel = null;
-
-// ... остальной код ...
-
 
 const $ = (id) => document.getElementById(id);
 
@@ -45,6 +43,119 @@ const stickerBtn = $("stickerBtn");
 const searchBarEl = $("searchBar");
 const searchInput = $("searchInput");
 const searchMeta = $("searchMeta");
+
+
+/**
+ * ИЗМЕНЕНИЕ 1: Загрузка сообщений из Supabase
+ * Мы меняем старую функцию loadMessages (которая лезла в IndexedDB)
+ */
+async function loadMessages() {
+  // Показываем только сообщения для текущего выбранного канала
+  const activeChanId = state.activeChannelId || 'default';
+  
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('channel_id', activeChanId) // фильтруем по каналу
+    .order('created_at', { ascending: true })
+    .limit(50);
+
+  if (error) {
+    console.error("Ошибка загрузки:", error);
+    return;
+  }
+
+  messagesEl.innerHTML = "";
+  if (data) {
+    data.forEach(msg => addSingleMessageToUI(msg));
+  }
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+/**
+ * ИЗМЕНЕНИЕ 2: Отправка сообщения в Supabase
+ * Заменяем старую логику сохранения
+ */
+async function postMessage() {
+  const val = messageInput.value.trim();
+  if (!val) return;
+
+  const msgPayload = {
+    text: val,
+    user_id: currentUserId,
+    user_email: currentUsername,
+    channel_id: state.activeChannelId || 'default',
+    guild_id: state.activeGuildId || 'default'
+  };
+
+  const { error } = await supabase
+    .from('messages')
+    .insert([msgPayload]);
+
+  if (error) {
+    console.error("Ошибка отправки:", error);
+    toastMessage("Ошибка отправки", "danger");
+  } else {
+    messageInput.value = "";
+  }
+}
+
+/**
+ * ИЗМЕНЕНИЕ 3: Обновленный Realtime
+ * Чтобы сообщения прилетали мгновенно
+ */
+function subscribeToMessages() {
+  if (messagesChannel) {
+    messagesChannel.unsubscribe();
+  }
+
+  messagesChannel = supabase
+    .channel('public:messages')
+    .on('postgres_changes', 
+      { event: 'INSERT', schema: 'public', table: 'messages' }, 
+      (payload) => {
+        const newMsg = payload.new;
+        // Проверяем, в том ли канале мы находимся
+        if (newMsg.channel_id === (state.activeChannelId || 'default')) {
+          addSingleMessageToUI(newMsg);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+    })
+    .subscribe();
+}
+
+/**
+ * Твоя функция отрисовки (оставляем как есть, просто убеждаемся, что она берет нужные поля)
+ */
+function addSingleMessageToUI(msg) {
+  const div = document.createElement("div");
+  div.className = "message";
+  // Используем msg.user_email и msg.text из таблицы Supabase
+  div.innerHTML = `
+    <div class="message__content">
+      <div class="message__header">
+        <span class="message__author">${msg.user_email || 'Аноним'}</span>
+        <span class="message__time">${new Date(msg.created_at).toLocaleTimeString()}</span>
+      </div>
+      <div class="message__text">${msg.text}</div>
+    </div>
+  `;
+  messagesEl.appendChild(div);
+}
+
+// В функции init() или в конце файла обязательно добавь:
+document.addEventListener("DOMContentLoaded", () => {
+    // Устанавливаем ник в UI
+    const whoEl = $("who");
+    if (whoEl) whoEl.textContent = `Ты вошёл как ${currentUsername}`;
+    
+    loadMessages();
+    subscribeToMessages();
+});
+
+// ... Весь остальной твой код (обработка кликов, модалки, настройки) остается НИЖЕ без изменений.
+
+
 
 function getSettings() {
   try {
