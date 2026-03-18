@@ -162,16 +162,32 @@ form.addEventListener("submit", async (e) => {
     createdAt: new Date().toISOString(),
   };
 
-  try {
+ try {
     setBusy(true);
-    await fakeNetwork(650, 1100);
 
-    if (!window.UserDB) throw new Error("NO_DB");
-    const user = await window.UserDB.createUser({
+    // 1. Регистрируем пользователя в Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
       email: payload.email,
-      username: payload.username,
       password: payload.password,
+      options: {
+        data: {
+          username: payload.username, // Сохраняем имя в метаданные
+        }
+      }
     });
+
+    if (error) throw error;
+
+    toastMessage("Готово! Проверь почту для подтверждения или войди.", "ok");
+    form.reset();
+    for (const k of Object.keys(fields)) setHint(k, null);
+
+  } catch (err) {
+    console.error(err);
+    toastMessage("Ошибка: " + (err.message || "Не удалось создать аккаунт"), "danger");
+  } finally {
+    setBusy(false);
+  }
 
     // Удобный "быстрый доступ" для текущего UI (источник истины — IndexedDB).
     localStorage.setItem("proto_user", JSON.stringify({ email: user.email, username: user.username }));
