@@ -100,7 +100,7 @@
     <script>
       const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co';
       const SUPABASE_ANON_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG'; 
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabase = window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
     <script src="./login.js"></script>
   </body>
