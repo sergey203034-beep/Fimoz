@@ -2,8 +2,10 @@
 
 const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
-
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const session = JSON.parse(sessionStorage.getItem("proto_session") || "{}");
+const currentUserId = session.userId;
+const currentUsername = session.username;
 
 let messagesChannel = null;
 
@@ -52,6 +54,49 @@ function getSettings() {
   }
 }
 
+async function handleSendMessage() {
+    const input = document.getElementById("messageInput"); // проверь ID инпута в HTML
+    const text = input.value.trim();
+
+    if (!text || !currentUserId) return;
+
+    const { error } = await supabase
+        .from('messages')
+        .insert([
+            { 
+                text: text, 
+                user_id: currentUserId, 
+                user_email: currentUsername 
+            }
+        ]);
+
+    if (error) {
+        console.error("Ошибка отправки:", error);
+    } else {
+        input.value = ""; // Очищаем поле после отправки
+    }
+}
+function subscribeToMessages() {
+    supabase
+        .channel('schema-db-changes')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            (payload) => {
+                // Вызываем твою функцию отрисовки для ОДНОГО нового сообщения
+                renderSingleMessage(payload.new); 
+            }
+        )
+        .subscribe();
+}
+
+// Запускаем при старте
+subscribeToMessages();
+
+// Привязываем к кнопке или Enter
+document.getElementById("messageInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleSendMessage();
+});
 function toastMessage(text, kind = "ok") {
   toast.dataset.kind = kind;
   toast.textContent = text;
@@ -88,12 +133,21 @@ function timeHHMM(iso) {
 }
 
 function initials(name) {
-  const n = String(name || "").trim();
-  if (!n) return "?";
-  const parts = n.split(/\s+/).filter(Boolean);
-  const a = (parts[0] || "").slice(0, 1).toUpperCase();
-  const b = (parts[1] || "").slice(0, 1).toUpperCase();
-  return (a + b) || a;
+  // Находим блок инициализации пользователя
+const sessionRaw = sessionStorage.getItem("proto_session");
+const session = sessionRaw ? JSON.parse(sessionRaw) : null;
+
+if (!session) {
+    window.location.href = "./login.html"; // Если не залогинен — на выход
+}
+
+const currentUsername = session.username;
+const currentUserId = session.userId;
+
+// Обновляем UI (проверь ID элемента в своем HTML, может быть "who" или "userName")
+if (document.getElementById("userName")) {
+    document.getElementById("userName").textContent = currentUsername;
+}
 }
 
 const state = {
