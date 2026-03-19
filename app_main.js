@@ -1,15 +1,3 @@
-// 1. Инициализация (в самом верху твоего файла)
-const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG'; // Твой ключ
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Получаем данные из сессии, которую мы создали в login.js
-const session = JSON.parse(sessionStorage.getItem("proto_session") || "{}");
-const currentUserId = session.userId;
-const currentUsername = session.username;
-
-let messagesChannel = null;
-
 const $ = (id) => document.getElementById(id);
 
 const toast = $("toast");
@@ -44,119 +32,6 @@ const searchBarEl = $("searchBar");
 const searchInput = $("searchInput");
 const searchMeta = $("searchMeta");
 
-
-/**
- * ИЗМЕНЕНИЕ 1: Загрузка сообщений из Supabase
- * Мы меняем старую функцию loadMessages (которая лезла в IndexedDB)
- */
-async function loadMessages() {
-  // Показываем только сообщения для текущего выбранного канала
-  const activeChanId = state.activeChannelId || 'default';
-  
-  const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('channel_id', activeChanId) // фильтруем по каналу
-    .order('created_at', { ascending: true })
-    .limit(50);
-
-  if (error) {
-    console.error("Ошибка загрузки:", error);
-    return;
-  }
-
-  messagesEl.innerHTML = "";
-  if (data) {
-    data.forEach(msg => addSingleMessageToUI(msg));
-  }
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-/**
- * ИЗМЕНЕНИЕ 2: Отправка сообщения в Supabase
- * Заменяем старую логику сохранения
- */
-async function postMessage() {
-  const val = messageInput.value.trim();
-  if (!val) return;
-
-  const msgPayload = {
-    text: val,
-    user_id: currentUserId,
-    user_email: currentUsername,
-    channel_id: state.activeChannelId || 'default',
-    guild_id: state.activeGuildId || 'default'
-  };
-
-  const { error } = await supabase
-    .from('messages')
-    .insert([msgPayload]);
-
-  if (error) {
-    console.error("Ошибка отправки:", error);
-    toastMessage("Ошибка отправки", "danger");
-  } else {
-    messageInput.value = "";
-  }
-}
-
-/**
- * ИЗМЕНЕНИЕ 3: Обновленный Realtime
- * Чтобы сообщения прилетали мгновенно
- */
-function subscribeToMessages() {
-  if (messagesChannel) {
-    messagesChannel.unsubscribe();
-  }
-
-  messagesChannel = supabase
-    .channel('public:messages')
-    .on('postgres_changes', 
-      { event: 'INSERT', schema: 'public', table: 'messages' }, 
-      (payload) => {
-        const newMsg = payload.new;
-        // Проверяем, в том ли канале мы находимся
-        if (newMsg.channel_id === (state.activeChannelId || 'default')) {
-          addSingleMessageToUI(newMsg);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
-        }
-    })
-    .subscribe();
-}
-
-/**
- * Твоя функция отрисовки (оставляем как есть, просто убеждаемся, что она берет нужные поля)
- */
-function addSingleMessageToUI(msg) {
-  const div = document.createElement("div");
-  div.className = "message";
-  // Используем msg.user_email и msg.text из таблицы Supabase
-  div.innerHTML = `
-    <div class="message__content">
-      <div class="message__header">
-        <span class="message__author">${msg.user_email || 'Аноним'}</span>
-        <span class="message__time">${new Date(msg.created_at).toLocaleTimeString()}</span>
-      </div>
-      <div class="message__text">${msg.text}</div>
-    </div>
-  `;
-  messagesEl.appendChild(div);
-}
-
-// В функции init() или в конце файла обязательно добавь:
-document.addEventListener("DOMContentLoaded", () => {
-    // Устанавливаем ник в UI
-    const whoEl = $("who");
-    if (whoEl) whoEl.textContent = `Ты вошёл как ${currentUsername}`;
-    
-    loadMessages();
-    subscribeToMessages();
-});
-
-// ... Весь остальной твой код (обработка кликов, модалки, настройки) остается НИЖЕ без изменений.
-
-
-
 function getSettings() {
   try {
     return JSON.parse(localStorage.getItem("proto_settings") || "null") || {};
@@ -165,49 +40,6 @@ function getSettings() {
   }
 }
 
-async function handleSendMessage() {
-    const input = document.getElementById("messageInput"); // проверь ID инпута в HTML
-    const text = input.value.trim();
-
-    if (!text || !currentUserId) return;
-
-    const { error } = await supabase
-        .from('messages')
-        .insert([
-            { 
-                text: text, 
-                user_id: currentUserId, 
-                user_email: currentUsername 
-            }
-        ]);
-
-    if (error) {
-        console.error("Ошибка отправки:", error);
-    } else {
-        input.value = ""; // Очищаем поле после отправки
-    }
-}
-function subscribeToMessages() {
-    supabase
-        .channel('schema-db-changes')
-        .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'messages' },
-            (payload) => {
-                // Вызываем твою функцию отрисовки для ОДНОГО нового сообщения
-                renderSingleMessage(payload.new); 
-            }
-        )
-        .subscribe();
-}
-
-// Запускаем при старте
-subscribeToMessages();
-
-// Привязываем к кнопке или Enter
-document.getElementById("messageInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") handleSendMessage();
-});
 function toastMessage(text, kind = "ok") {
   toast.dataset.kind = kind;
   toast.textContent = text;
@@ -244,21 +76,12 @@ function timeHHMM(iso) {
 }
 
 function initials(name) {
-  // Находим блок инициализации пользователя
-const sessionRaw = sessionStorage.getItem("proto_session");
-const session = sessionRaw ? JSON.parse(sessionRaw) : null;
-
-if (!session) {
-    window.location.href = "./login.html"; // Если не залогинен — на выход
-}
-
-const currentUsername = session.username;
-const currentUserId = session.userId;
-
-// Обновляем UI (проверь ID элемента в своем HTML, может быть "who" или "userName")
-if (document.getElementById("userName")) {
-    document.getElementById("userName").textContent = currentUsername;
-}
+  const n = String(name || "").trim();
+  if (!n) return "?";
+  const parts = n.split(/\s+/).filter(Boolean);
+  const a = (parts[0] || "").slice(0, 1).toUpperCase();
+  const b = (parts[1] || "").slice(0, 1).toUpperCase();
+  return (a + b) || a;
 }
 
 const state = {
@@ -299,38 +122,62 @@ async function ensureUserId() {
 }
 
 async function boot() {
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-  if (sessionError || !session) {
+  state.me = requireSession();
+  if (!state.me) {
     toastMessage("Сессия не найдена. Верну на вход.", "danger");
-    setTimeout(() => (window.location.href = "./login.html"), 600);
+    window.setTimeout(() => (window.location.href = "./login.html"), 600);
     return;
   }
 
-  const user = session.user;
-  state.me = {
-    username: user.user_metadata?.username || user.email?.split('@')[0] || 'User',
-    userId: user.id,
-  };
-
-  // Сохраняем для совместимости с твоим кодом
-  sessionStorage.setItem("proto_session", JSON.stringify({
-    username: state.me.username,
-    userId: state.me.userId
-  }));
+  await ensureUserId();
 
   $("meName").textContent = state.me.username;
+  await hydrateMeProfile();
+  applyAvatarToEl($("avatar"), state.meProfile && state.meProfile.avatar ? state.meProfile.avatar : null, state.me.username, {
+    big: false,
+  });
 
-  await hydrateMeProfile();  // оставляем как есть, если нужно
-  applyAvatarToEl($("avatar"), state.meProfile?.avatar || null, state.me.username, { big: false });
+  if (!window.ChatDB) {
+    toastMessage("База чатов недоступна.", "danger");
+    return;
+  }
 
-  // Подписка на Realtime (один раз при старте)
-  subscribeToMessages();
+  if (window.SettingsUI) {
+    await window.SettingsUI.init({
+      session: { username: state.me.username, userId: state.me.userId },
+      onLogout: () => {
+        sessionStorage.removeItem("proto_session");
+        window.location.href = "./login.html";
+      },
+      onSessionUpdate: ({ username, avatar }) => {
+        if (username) {
+          state.me.username = username;
+          $("meName").textContent = username;
+          applyAvatarToEl($("avatar"), state.meProfile && state.meProfile.avatar ? state.meProfile.avatar : null, username, {
+            big: false,
+          });
+        }
+        if (typeof avatar !== "undefined") {
+          state.meProfile = state.meProfile || { id: state.me.userId, username: state.me.username, avatar: null };
+          state.meProfile.avatar = avatar;
+          applyAvatarToEl($("avatar"), avatar, state.me.username, { big: false });
+        }
+      },
+    });
+  }
 
-  // Остальной код boot() — guilds, channels, render и т.д. — оставляем
-  // ↓↓↓ твой оригинальный код дальше ↓↓↓
-  // if (!window.ChatDB) { ... } и т.д.
-  // ...
+  await window.ChatDB.ensureSeed({ username: state.me.username });
+  if (window.StickerDB) {
+    try {
+      await window.StickerDB.ensureSeed();
+      state.stickers = await window.StickerDB.list();
+    } catch {}
+  }
+  state.guilds = await window.ChatDB.listGuilds();
+  renderGuilds();
+
+  const firstGuild = state.guilds[0];
+  if (firstGuild) await setActiveGuild(firstGuild.id);
 }
 
 function openPickPane(kind) {
@@ -587,7 +434,6 @@ async function setActiveChannel(channelId) {
   applyMode();
   await renderMessages();
   renderMembers();
-  subscribeToMessages();
 }
 
 function renderGuilds() {
@@ -625,78 +471,181 @@ function renderChannels() {
 }
 
 async function renderMessages() {
+  const list =
+    state.scope.kind === "dm"
+      ? await window.DMDB.listMessages({ threadId: state.dm.threadId, limit: 120 })
+      : await window.ChatDB.listMessages(state.activeChannelId, 120);
   messagesEl.innerHTML = "";
-
-  let query = supabase.from('messages')
-    .select('*')
-    .order('created_at', { ascending: true })
-    .limit(120);
-
-  if (state.scope.kind === 'dm') {
-    query = query.eq('dm_thread_id', state.dm.threadId).is('channel_id', null);
-  } else {
-    query = query.eq('channel_id', state.activeChannelId).is('dm_thread_id', null);
-  }
-
-  const { data: list, error } = await query;
-
-  if (error) {
-    toastMessage("Ошибка загрузки сообщений", "danger");
-    console.error(error);
-    return;
-  }
 
   if (!list.length) {
     const empty = document.createElement("div");
     empty.className = "msgEmpty";
-    empty.textContent = "Пока нет сообщений. Напиши первым!";
+    empty.textContent = state.scope.kind === "dm" ? "Пока нет сообщений. Напиши первым!" : "Пока нет сообщений. Напиши первое!";
     messagesEl.appendChild(empty);
   } else {
+    const byId = new Map(list.map((m) => [m.id, m]));
     for (const m of list) {
-      addSingleMessageToUI(m);
+      const el = document.createElement("article");
+      el.className = "msg";
+      el.dataset.mid = m.id;
+      const whoRaw = m.author || "user";
+      const who = escapeHtml(whoRaw);
+      const deleted = !!m.deletedAt;
+      const rawContent = m.content || "";
+      const txt = deleted ? "Сообщение удалено" : escapeHtml(rawContent);
+      const edited = !deleted && m.editedAt ? ` <span class="msg__time">(edited)</span>` : "";
+
+      let replyHtml = "";
+      if (m.replyTo) {
+        const ref = byId.get(m.replyTo);
+        if (ref) {
+          replyHtml = `<div class="msgReply">↪ ${escapeHtml(ref.author || "user")}: ${escapeHtml(
+            (ref.content || "").slice(0, 70),
+          )}</div>`;
+        } else {
+          replyHtml = `<div class="msgReply">↪ reply</div>`;
+        }
+      }
+
+      const reactions = m.reactions && typeof m.reactions === "object" ? m.reactions : {};
+      const reactKeys = Object.keys(reactions);
+      const reactHtml = reactKeys.length
+        ? `<div class="msgReactions">${reactKeys
+            .map((k) => `<button class="reactPill" type="button" data-react="${escapeHtml(k)}">${escapeHtml(k)} ${escapeHtml(String(reactions[k]))}</button>`)
+            .join("")}</div>`
+        : "";
+
+      const actionHtml = `
+        <div class="msgActions">
+          <button class="actBtn" type="button" data-act="reply" title="Reply">↩</button>
+          <button class="actBtn" type="button" data-act="react" title="React">☺</button>
+          ${
+            whoRaw === state.me.username && !deleted
+              ? `<button class="actBtn" type="button" data-act="edit" title="Edit">✎</button>
+                 <button class="actBtn actBtn--danger" type="button" data-act="delete" title="Delete">🗑</button>`
+              : ""
+          }
+        </div>
+      `;
+
+      const contentHtml = deleted ? txt : highlightText(rawContent, state.search.q);
+
+      el.innerHTML = `
+        <div class="msg__avatar" data-ava="1">${escapeHtml(initials(who))}</div>
+        <div class="msg__body">
+          <div class="msg__meta">
+            <span class="msg__author">${who}</span>
+            <span class="msg__time">${escapeHtml(timeHHMM(m.createdAt))}${edited}</span>
+          </div>
+          ${replyHtml}
+          <div class="msg__text ${deleted ? "msg__text--deleted" : ""}">${contentHtml}</div>
+          <div class="attachGrid" data-att="1"></div>
+          ${reactHtml}
+        </div>
+        ${actionHtml}
+      `;
+      messagesEl.appendChild(el);
+
+      // avatar rendering (if known)
+      const aEl = el.querySelector('[data-ava="1"]');
+      const u = state.usersByName && state.usersByName.get ? state.usersByName.get(whoRaw) : null;
+      const ava = u && u.avatar ? u.avatar : whoRaw === state.me.username && state.meProfile ? state.meProfile.avatar : null;
+      applyAvatarToEl(aEl, ava, whoRaw, { big: false });
+
+      // attachments (не показываем для удалённых сообщений)
+      const msgKey = state.scope.kind === "dm" ? `dm:${m.id}` : `ch:${m.id}`;
+      const attList = deleted ? [] : await window.AttDB.list({ messageKey: msgKey });
+      const grid = el.querySelector('[data-att="1"]');
+      if (grid && attList.length) {
+        for (const a of attList) {
+          const item = document.createElement("div");
+          item.className = "attachItem";
+          if (a.type && a.type.startsWith("image/")) {
+            const url = URL.createObjectURL(a.blob);
+            if (a.kind === "sticker") {
+              item.innerHTML = `<img class="attachImg--sticker" src="${url}" alt="" />`;
+            } else {
+              item.innerHTML = `<img class="attachImg" src="${url}" alt="" /><div class="attachName">${escapeHtml(
+                a.name,
+              )}</div>`;
+            }
+          } else {
+            item.innerHTML = `<div class="attachName">${escapeHtml(a.name)}</div>`;
+          }
+          grid.appendChild(item);
+        }
+      }
     }
+
+    // wire message actions (event delegation)
+    messagesEl.querySelectorAll(".msgActions .actBtn").forEach((b) => {
+      b.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const act = b.dataset.act;
+        const root = b.closest(".msg");
+        const mid = root && root.dataset.mid;
+        const listNow =
+          state.scope.kind === "dm"
+            ? await window.DMDB.listMessages({ threadId: state.dm.threadId, limit: 200 })
+            : await window.ChatDB.listMessages(state.activeChannelId, 200);
+        const msg = listNow.find((x) => x.id === mid);
+        if (!msg) return;
+
+        if (act === "reply") {
+          state.replyTo = { kind: state.scope.kind, id: msg.id, author: msg.author, content: msg.content || "" };
+          toastMessage(`Reply: ${msg.author}`, "ok");
+          messageInput.focus();
+          return;
+        }
+        if (act === "react") {
+          const emoji = prompt("Реакция (например 👍 😂 ❤️):", "👍");
+          if (!emoji) return;
+          if (state.scope.kind === "dm") await window.DMDB.react({ messageId: msg.id, emoji });
+          else await window.ChatDB.react({ messageId: msg.id, emoji });
+          await renderMessages();
+          return;
+        }
+        if (act === "edit") {
+          const next = prompt("Изменить сообщение:", msg.content || "");
+          if (next == null) return;
+          if (state.scope.kind === "dm") await window.DMDB.editMessage({ messageId: msg.id, author: state.me.username, content: next });
+          else await window.ChatDB.editMessage({ messageId: msg.id, author: state.me.username, content: next });
+          await renderMessages();
+          return;
+        }
+        if (act === "delete") {
+          const ok = confirm("Удалить сообщение?");
+          if (!ok) return;
+          try {
+            if (state.scope.kind === "dm") await window.DMDB.deleteMessage({ messageId: msg.id, author: state.me.username });
+            else await window.ChatDB.deleteMessage({ messageId: msg.id, author: state.me.username });
+
+            if (window.AttDB && typeof window.AttDB.deleteByMessageKey === "function") {
+              const messageKey = state.scope.kind === "dm" ? `dm:${msg.id}` : `ch:${msg.id}`;
+              await window.AttDB.deleteByMessageKey({ messageKey });
+            }
+          } catch {
+            toastMessage("Не удалось удалить сообщение.", "danger");
+          }
+          await renderMessages();
+        }
+      });
+    });
+
+    messagesEl.querySelectorAll(".msgReactions .reactPill").forEach((b) => {
+      b.addEventListener("click", async () => {
+        const root = b.closest(".msg");
+        const mid = root && root.dataset.mid;
+        const emoji = b.dataset.react;
+        if (!mid || !emoji) return;
+        if (state.scope.kind === "dm") await window.DMDB.react({ messageId: mid, emoji });
+        else await window.ChatDB.react({ messageId: mid, emoji });
+        await renderMessages();
+      });
+    });
   }
 
   messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-function addSingleMessageToUI(m) {
-  const whoRaw = m.username || "user";
-  const who = escapeHtml(whoRaw);
-  const txt = escapeHtml(m.content || "");
-  const time = timeHHMM(m.created_at);
-
-  const el = document.createElement("article");
-  el.className = "msg";
-  el.dataset.mid = m.id;
-
-  let replyHtml = "";
-  if (m.reply_to) {
-    replyHtml = `<div class="msgReply">↪ Reply to #${m.reply_to.slice(0,8)}</div>`;
-  }
-
-  el.innerHTML = `
-    <div class="msg__avatar" data-ava="1">${escapeHtml(initials(who))}</div>
-    <div class="msg__body">
-      <div class="msg__meta">
-        <span class="msg__author">${who}</span>
-        <span class="msg__time">${time}</span>
-      </div>
-      ${replyHtml}
-      <div class="msg__text">${txt}</div>
-      <div class="attachGrid" data-att="1"></div>
-    </div>
-    <div class="msgActions">
-      <!-- твои кнопки reply/react/edit/delete — можно добавить логику позже -->
-    </div>
-  `;
-
-  messagesEl.appendChild(el);
-
-  // Аватар (как у тебя)
-  const aEl = el.querySelector('[data-ava="1"]');
-  applyAvatarToEl(aEl, null, whoRaw, { big: false });  // можно улучшить позже
-
-  // Если нужно attachments — пока пропустим, добавим позже через Storage
 }
 
 function highlightText(raw, q) {
@@ -859,37 +808,29 @@ composer.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = messageInput.value.trim();
   if (!text) return;
+
   messageInput.value = "";
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    toastMessage("Не авторизован", "danger");
-    return;
+  try {
+    if (state.scope.kind === "dm") {
+      await window.DMDB.addMessage({
+        threadId: state.dm.threadId,
+        author: state.me.username,
+        content: text,
+        replyTo: state.replyTo ? state.replyTo.id : null,
+      });
+    } else {
+      await window.ChatDB.addMessage({
+        channelId: state.activeChannelId,
+        author: state.me.username,
+        content: text,
+        replyTo: state.replyTo ? state.replyTo.id : null,
+      });
+    }
+    state.replyTo = null;
+    await renderMessages();
+  } catch {
+    toastMessage("Не удалось отправить сообщение.", "danger");
   }
-
-  const payload = {
-    user_id: user.id,
-    username: state.me.username,
-    content: text,
-    reply_to: state.replyTo ? state.replyTo.id : null,
-  };
-
-  if (state.scope.kind === "dm") {
-    payload.dm_thread_id = state.dm.threadId;
-  } else {
-    payload.channel_id = state.activeChannelId;
-  }
-
-  const { error } = await supabase.from('messages').insert(payload);
-
-  if (error) {
-    toastMessage("Ошибка отправки: " + error.message, "danger");
-    console.error(error);
-    return;
-  }
-
-  state.replyTo = null;
-  // renderMessages() НЕ нужен — Realtime добавит сам
 });
 
 attachBtn.addEventListener("click", () => filePicker.click());
@@ -1342,7 +1283,6 @@ async function openDM(peerUserId, peerName) {
   await hydrateUsersByName();
   await renderMessages();
   renderMembers();
-  subscribeToMessages();
 }
 
 $("homeBtn").addEventListener("click", async () => {
@@ -1423,39 +1363,6 @@ window.addEventListener("proto_settings_changed", (e) => {
     state.voiceRoom.setOutputVolume(s.outputVolume);
   }
 });
-function subscribeToMessages() {
-  if (messagesChannel) {
-    messagesChannel.unsubscribe();
-    messagesChannel = null;
-  }
 
-  messagesChannel = supabase.channel('messages-channel');
-
-  messagesChannel
-    .on('postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages' },
-      (payload) => {
-        const newMsg = payload.new;
-
-        // Показываем только если это текущий канал или DM
-        const isRelevant =
-          (state.scope.kind === 'dm' && newMsg.dm_thread_id === state.dm.threadId) ||
-          (state.scope.kind !== 'dm' && newMsg.channel_id === state.activeChannelId);
-
-        if (isRelevant) {
-          addSingleMessageToUI(newMsg);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
-        }
-      }
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('Realtime: Подписка активна');
-      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-        console.warn('Realtime проблема:', status);
-      }
-    });
-}
-subscribeToMessages();
 boot();
-subscribeToMessages();
+
