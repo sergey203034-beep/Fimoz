@@ -1,58 +1,108 @@
-{
-  const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
+/**
+ * ПОЛНЫЙ КОД ДЛЯ login.js
+ * Исправлены конфликты переменных и ошибки загрузки
+ */
+(function() {
+    // 1. Настройки подключения
+    const CONFIG = {
+        URL: 'https://lgzwikzebvrlgosgzbr.supabase.co',
+        KEY: 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG' // Твой публичный ключ
+    };
 
-  // Ждем, пока библиотека загрузится, прежде чем создавать клиента
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabase = null;
 
-  const $ = (id) => document.getElementById(id);
-  const form = $("loginForm");
-  const submitBtn = $("submitBtn");
-  const toast = $("toast");
+    // Внутренняя функция поиска элементов (чтобы не конфликтовать с $)
+    const getById = (id) => document.getElementById(id);
 
-  function toastMessage(text, kind = "ok") {
-    toast.dataset.kind = kind;
-    toast.textContent = text;
-    toast.style.display = "block";
-    window.clearTimeout(toast.__t);
-    toast.__t = window.setTimeout(() => { toast.style.display = "none"; }, 3000);
-  }
+    // Функция инициализации
+    function init() {
+        // Проверяем, загружена ли библиотека из HTML
+        if (!window.supabase) {
+            console.log("Ожидание загрузки Supabase...");
+            setTimeout(init, 100); // Пробуем снова через 0.1 сек
+            return;
+        }
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    
-    const email = $("identifier").value.trim(); 
-    const password = $("password").value;
+        // Создаем клиент
+        supabase = window.supabase.createClient(CONFIG.URL, CONFIG.KEY);
+        console.log("Supabase готов к работе.");
 
-    if (!email || !password) {
-      toastMessage("Введите данные", "danger");
-      return;
+        const form = getById("loginForm");
+        const submitBtn = getById("submitBtn");
+        const toast = getById("toast");
+
+        if (!form) {
+            console.error("Форма loginForm не найдена в HTML!");
+            return;
+        }
+
+        // Обработка отправки формы
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const emailInput = getById("identifier");
+            const passInput = getById("password");
+
+            const email = emailInput.value.trim();
+            const password = passInput.value;
+
+            if (!email || !password) {
+                showToast("Введите почту и пароль", "danger");
+                return;
+            }
+
+            try {
+                setLoading(true);
+
+                // Попытка входа
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) throw error;
+
+                // Если вход успешен, сохраняем данные сессии
+                const sessionData = {
+                    userId: data.user.id,
+                    username: data.user.user_metadata.username || data.user.email,
+                    signedInAt: new Date().toISOString()
+                };
+
+                sessionStorage.setItem("proto_session", JSON.stringify(sessionData));
+
+                // Перенаправляем в мессенджер
+                window.location.href = "./app.html";
+
+            } catch (err) {
+                console.error("Ошибка авторизации:", err);
+                showToast(err.message === "Failed to fetch" 
+                    ? "Ошибка сети: не удалось связаться с базой данных" 
+                    : "Ошибка: " + err.message, "danger"
+                );
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function setLoading(isLoading) {
+            if (!submitBtn) return;
+            submitBtn.disabled = isLoading;
+            submitBtn.textContent = isLoading ? "Вход..." : "Войти";
+        }
+
+        function showToast(text, kind) {
+            if (!toast) {
+                alert(text);
+                return;
+            }
+            toast.textContent = text;
+            toast.dataset.kind = kind;
+            toast.style.display = "block";
+            setTimeout(() => { toast.style.display = "none"; }, 4000);
+        }
     }
 
-    try {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Входим...";
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
-
-      if (error) throw error;
-
-      // Сохраняем сессию для главного экрана
-      sessionStorage.setItem("proto_session", JSON.stringify({
-        userId: data.user.id,
-        username: data.user.user_metadata.username || data.user.email,
-        signedInAt: new Date().toISOString()
-      }));
-
-      window.location.href = "./app.html";
-
-    } catch (err) {
-      toastMessage("Ошибка: " + err.message, "danger");
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Войти";
-    }
-  });
-}
+    // Запускаем процесс
+    init();
+})();
