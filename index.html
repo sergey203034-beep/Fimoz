@@ -1,122 +1,44 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Регистрация — Analogue Discord</title>
-    <meta name="color-scheme" content="dark" />
+    <title>Регистрация — Fimoz</title>
     <link rel="stylesheet" href="./styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  </head>
-  <body>
+</head>
+<body>
     <main class="shell">
-      <section class="card" aria-labelledby="title">
-        <header class="card__header">
-          <div class="logo" aria-hidden="true">
-            <div class="logo__mark"></div>
-            <div class="logo__mark"></div>
-            <div class="logo__mark"></div>
-          </div>
-          <h1 id="title" class="title">Создать аккаунт</h1>
-          <p class="subtitle">Добро пожаловать! Заполни поля ниже, чтобы продолжить.</p>
-        </header>
+        <section class="card">
+            <header class="card__header">
+                <h1 class="title">Создать аккаунт</h1>
+                <p class="subtitle">Присоединяйся к мессенджеру!</p>
+            </header>
 
-        <form id="registerForm" class="form" novalidate>
-          <div class="field">
-            <label class="label" for="email">Почта <span class="req">*</span></label>
-            <input
-              class="input"
-              id="email"
-              name="email"
-              type="email"
-              autocomplete="email"
-              inputmode="email"
-              placeholder="name@example.com"
-              required
-            />
-            <p class="hint" id="emailHint" aria-live="polite"></p>
-          </div>
+            <form id="registerForm" class="form">
+                <div class="field">
+                    <label class="label">Почта</label>
+                    <input class="input" id="email" type="email" placeholder="email@example.com" required />
+                </div>
+                <div class="field">
+                    <label class="label">Имя пользователя (ник)</label>
+                    <input class="input" id="username" type="text" placeholder="Твой ник" required />
+                </div>
+                <div class="field">
+                    <label class="label">Пароль</label>
+                    <input class="input" id="password" type="password" placeholder="Минимум 6 символов" required />
+                </div>
 
-          <div class="field">
-            <label class="label" for="username">Имя пользователя <span class="req">*</span></label>
-            <input
-              class="input"
-              id="username"
-              name="username"
-              type="text"
-              autocomplete="username"
-              placeholder="например: serge"
-              minlength="2"
-              maxlength="32"
-              required
-            />
-            <p class="hint" id="usernameHint" aria-live="polite"></p>
-          </div>
+                <button class="primaryBtn" type="submit" id="submitBtn">Зарегистрироваться</button>
 
-          <div class="field">
-            <label class="label" for="password">Пароль <span class="req">*</span></label>
-            <div class="inputRow">
-              <input
-                class="input"
-                id="password"
-                name="password"
-                type="password"
-                autocomplete="new-password"
-                placeholder="Минимум 8 символов"
-                minlength="8"
-                required
-              />
-              <button class="ghostBtn" type="button" id="togglePassword" aria-label="Показать пароль">
-                Показать
-              </button>
-            </div>
-            <p class="hint" id="passwordHint" aria-live="polite"></p>
-          </div>
-
-          <div class="field">
-            <label class="label" for="confirm">Повтори пароль <span class="req">*</span></label>
-            <input
-              class="input"
-              id="confirm"
-              name="confirm"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Повтори пароль"
-              required
-            />
-            <p class="hint" id="confirmHint" aria-live="polite"></p>
-          </div>
-
-          <div class="field">
-            <label class="label" for="dob">Дата рождения</label>
-            <input class="input" id="dob" name="dob" type="date" />
-            <p class="hint" id="dobHint" aria-live="polite"></p>
-          </div>
-
-          <label class="check">
-            <input id="terms" name="terms" type="checkbox" />
-            <span>Я принимаю условия и политику конфиденциальности</span>
-          </label>
-
-          <button class="primaryBtn" type="submit" id="submitBtn">Продолжить</button>
-
-          <p class="small">
-            Уже есть аккаунт?
-            <a class="link" href="./login.html" id="loginLink">Войти</a>
-          </p>
-        </form>
-
-        <footer class="card__footer">
-          <p class="micro">
-            Это прототип регистрации. Дальше подключим настоящий backend, верификацию почты и логин.
-          </p>
-        </footer>
-      </section>
-
-      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+                <p class="small">
+                    Уже есть аккаунт? <a class="link" href="./login.html">Войти</a>
+                </p>
+            </form>
+        </section>
+        <div class="toast" id="toast"></div>
     </main>
 
-    <script src="./db.js"></script>
     <script src="./app.js"></script>
-  </body>
+</body>
 </html>
