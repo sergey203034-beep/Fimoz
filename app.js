@@ -5,7 +5,8 @@ const submitBtn = $("submitBtn");
 const toast = $("toast");
 
 // --- КОНФИГ SUPABASE ---
-const SUPABASE_URL = 'https://lzgwikzebvlrgzosgzbr.supabase.co';
+// Вставь сюда свою новую правильную ссылку
+const SUPABASE_URL = 'https://lzgwikzebvlrgzosgzbr.supabase.co'; 
 const SUPABASE_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
 
 const getSupabase = () => {
