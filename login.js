@@ -1,11 +1,3 @@
-// В файлах login.js и app_main.js
-const CONFIG = {
-    URL: 'https://lzgwikzebvlrgzosgzbr.supabase.co',
-    KEY: 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG'
-};
-
-
-
 const $ = (id) => document.getElementById(id);
 
 const form = $("loginForm");
@@ -15,12 +7,18 @@ const toast = $("toast");
 const identifier = $("identifier");
 const password = $("password");
 
-const hints = {
-  identifier: $("identifierHint"),
-  password: $("passwordHint"),
+// --- КОНФИГ SUPABASE (тот же, что в app.js) ---
+const SUPABASE_URL = 'https://lzgwikzebvlrgzosgzbr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
+
+// Инициализация клиента
+const getSupabase = () => {
+  if (!window.supabase) return null;
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 };
 
 function toastMessage(text, kind = "ok") {
+  if (!toast) { alert(text); return; }
   toast.dataset.kind = kind;
   toast.textContent = text;
   toast.style.display = "block";
@@ -35,90 +33,61 @@ function setBusy(busy) {
   submitBtn.textContent = busy ? "Входим..." : "Войти";
 }
 
-function setInvalid(el, hintEl, msg) {
-  if (!msg) {
-    el.setAttribute("aria-invalid", "false");
-    hintEl.textContent = "";
-    hintEl.className = "hint";
-    return;
-  }
-  el.setAttribute("aria-invalid", "true");
-  hintEl.textContent = msg;
-  hintEl.className = "hint hint--danger";
-}
-
-function validate() {
-  let ok = true;
-
-  const id = identifier.value.trim();
-  const pw = password.value;
-
-  if (!id) {
-    setInvalid(identifier, hints.identifier, "Укажи почту или имя пользователя.");
-    ok = false;
-  } else {
-    setInvalid(identifier, hints.identifier, null);
-  }
-
-  if (!pw) {
-    setInvalid(password, hints.password, "Укажи пароль.");
-    ok = false;
-  } else {
-    setInvalid(password, hints.password, null);
-  }
-
-  return ok;
-}
-
-$("togglePassword").addEventListener("click", () => {
-  const showing = password.type === "text";
-  password.type = showing ? "password" : "text";
-  const btn = $("togglePassword");
-  btn.textContent = showing ? "Показать" : "Скрыть";
-  btn.setAttribute("aria-label", showing ? "Показать пароль" : "Скрыть пароль");
-});
-
-identifier.addEventListener("input", () => validate());
-password.addEventListener("input", () => validate());
-
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  toast.style.display = "none";
+  
+  const email = identifier.value.trim();
+  const pw = password.value;
 
-  if (!validate()) return;
+  if (!email || !pw) {
+    toastMessage("Введите почту и пароль", "danger");
+    return;
+  }
 
   try {
     setBusy(true);
-    await fakeNetwork(450, 900);
-    if (!window.UserDB) throw new Error("NO_DB");
-    const res = await window.UserDB.login({ identifier: identifier.value, password: password.value });
-    if (!res.ok) {
-      if (res.code === "NOT_FOUND") {
-        toastMessage("Аккаунт не найден. Нажми «Создать аккаунт».", "danger");
-      } else if (res.code === "BAD_PASSWORD") {
-        toastMessage("Неверный пароль.", "danger");
-      } else {
-        toastMessage("Не удалось войти. Попробуй ещё раз.", "danger");
-      }
-      return;
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("База данных не загружена");
+
+    // ВХОД ЧЕРЕЗ SUPABASE
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: pw,
+    });
+
+    if (error) throw error;
+
+    // Сохраняем сессию (как и раньше, для совместимости с твоим app.html)
+    const sessionData = {
+      userId: data.user.id,
+      username: data.user.user_metadata.username || data.user.email,
+      signedInAt: new Date().toISOString()
+    };
+    
+    sessionStorage.setItem("proto_session", JSON.stringify(sessionData));
+    localStorage.setItem("proto_user", JSON.stringify({ 
+      email: data.user.email, 
+      username: sessionData.username 
+    }));
+
+    toastMessage("Успешный вход! Переходим в чат...", "ok");
+
+    setTimeout(() => {
+      window.location.href = "./app.html";
+    }, 1000);
+
+  } catch (err) {
+    console.error("Ошибка входа:", err);
+    let msg = "Не удалось войти. Проверь почту и пароль.";
+    
+    if (err.message.includes("Invalid login credentials")) {
+        msg = "Неверная почта или пароль.";
+    } else {
+        msg = err.message;
     }
 
-    sessionStorage.setItem(
-      "proto_session",
-      JSON.stringify({ userId: res.user.id, username: res.user.username, signedInAt: new Date().toISOString() }),
-    );
-    localStorage.setItem("proto_user", JSON.stringify({ email: res.user.email, username: res.user.username }));
-    window.location.href = "./app.html";
-  } catch (err) {
-    const msg = err && err.message === "NO_DB" ? "База данных недоступна в этом браузере." : null;
-    toastMessage(msg || "Не удалось войти. Попробуй ещё раз.", "danger");
+    toastMessage(msg, "danger");
   } finally {
     setBusy(false);
   }
 });
-
-function fakeNetwork(minMs, maxMs) {
-  const t = Math.floor(minMs + Math.random() * (maxMs - minMs));
-  return new Promise((resolve) => setTimeout(resolve, t));
-}
-
