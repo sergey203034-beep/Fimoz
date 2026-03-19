@@ -1,51 +1,162 @@
-(function() {
-    // ВСТАВЬ СВОИ ДАННЫЕ ИЗ SUPABASE (Settings -> API)
-    const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co'; 
-    const SUPABASE_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
+const $ = (id) => document.getElementById(id);
 
-    let supabase = null;
+const form = $("registerForm");
+const submitBtn = $("submitBtn");
+const toast = $("toast");
 
-    async function init() {
-        if (!window.supabase) {
-            setTimeout(init, 100);
-            return;
+// --- КОНФИГ SUPABASE ---
+const SUPABASE_URL = 'https://lgzwikzebvrlgosgzbr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
+
+const getSupabase = () => {
+  if (!window.supabase) return null;
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+};
+
+const fields = {
+  email: {
+    el: $("email"),
+    hint: $("emailHint"),
+    validate(value) {
+      if (!value) return "Укажи почту.";
+      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      if (!ok) return "Похоже, это невалидная почта.";
+      return null;
+    },
+  },
+  username: {
+    el: $("username"),
+    hint: $("usernameHint"),
+    validate(value) {
+      if (!value) return "Укажи имя пользователя.";
+      const trimmed = value.trim();
+      if (trimmed.length < 2) return "Минимум 2 символа.";
+      if (trimmed.length > 32) return "Максимум 32 символа.";
+      const ok = /^[a-zA-Z0-9._-]+$/.test(trimmed);
+      if (!ok) return "Можно только латиницу, цифры и символы . _ -";
+      return null;
+    },
+  },
+  password: {
+    el: $("password"),
+    hint: $("passwordHint"),
+    validate(value) {
+      if (!value) return "Придумай пароль.";
+      if (value.length < 6) return "Минимум 6 символов."; // Supabase требует минимум 6
+      return null;
+    },
+  }
+};
+
+function toastMessage(text, kind = "ok") {
+  if (!toast) { alert(text); return; }
+  toast.dataset.kind = kind;
+  toast.textContent = text;
+  toast.style.display = "block";
+  window.clearTimeout(toast.__t);
+  toast.__t = window.setTimeout(() => {
+    toast.style.display = "none";
+  }, 3000);
+}
+
+function setHint(key, msg) {
+  const f = fields[key];
+  if (!f || !f.el || !f.hint) return; // Безопасная проверка
+
+  if (!msg) {
+    f.el.setAttribute("aria-invalid", "false");
+    f.hint.textContent = "";
+    f.hint.className = "hint";
+  } else {
+    f.el.setAttribute("aria-invalid", "true");
+    f.hint.textContent = msg;
+    f.hint.className = "hint hint--danger";
+  }
+}
+
+function validateAll() {
+  let ok = true;
+  for (const k of Object.keys(fields)) {
+    const err = fields[k].validate(fields[k].el.value);
+    setHint(k, err);
+    if (err) ok = false;
+  }
+  return ok;
+}
+
+function setBusy(busy) {
+  if (!submitBtn) return;
+  submitBtn.disabled = busy;
+  submitBtn.textContent = busy ? "Создание..." : "Продолжить";
+}
+
+// Навешиваем обработчики ввода только на существующие поля
+Object.keys(fields).forEach(key => {
+    if (fields[key].el) {
+        fields[key].el.addEventListener("input", () => setHint(key, null));
+    }
+});
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  
+  if (!validateAll()) return;
+
+  const payload = {
+    email: fields.email.el.value.trim(),
+    username: fields.username.el.value.trim(),
+    password: fields.password.el.value,
+  };
+
+  try {
+    setBusy(true);
+    
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("БИБЛИОТЕКА_НЕ_ЗАГРУЖЕНА");
+
+    // Регистрация в Supabase Auth
+    const { data, error } = await supabase.auth.signUp({
+      email: payload.email,
+      password: payload.password,
+      options: {
+        data: {
+          username: payload.username
         }
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      }
+    });
 
-        const form = document.getElementById("registerForm");
-        const btn = document.getElementById("submitBtn");
+    if (error) throw error;
 
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById("email").value.trim();
-            const password = document.getElementById("password").value;
-            const username = document.getElementById("username").value.trim();
+    // Сохраняем для совместимости с твоим текущим UI
+    localStorage.setItem("proto_user", JSON.stringify({ 
+        email: payload.email, 
+        username: payload.username 
+    }));
 
-            try {
-                btn.disabled = true;
-                btn.textContent = "Создание...";
+    toastMessage("Готово! Аккаунт создан. Теперь можно войти.", "ok");
+    
+    // Очистка формы
+    form.reset();
 
-                const { data, error } = await supabase.auth.signUp({
-                    email: email,
-                    password: password,
-                    options: {
-                        data: { username: username } // Сохраняем ник в метаданные
-                    }
-                });
+    // Переход на логин через 2 секунды
+    setTimeout(() => {
+        window.location.href = "./login.html";
+    }, 2000);
 
-                if (error) throw error;
-
-                alert("Успех! Теперь войди под этими данными.");
-                window.location.href = "./login.html";
-
-            } catch (err) {
-                alert("Ошибка: " + err.message);
-                btn.disabled = false;
-                btn.textContent = "Зарегистрироваться";
-            }
-        });
+  } catch (err) {
+    console.error("Ошибка регистрации:", err);
+    let msg = "Что-то пошло не так. Попробуй ещё раз.";
+    
+    if (err.message.includes("already registered")) {
+        msg = "Такая почта уже занята.";
+    } else if (err.message === "БИБЛИОТЕКА_НЕ_ЗАГРУЖЕНА") {
+        msg = "Ошибка: база данных не загрузилась.";
+    } else {
+        msg = err.message;
     }
 
-    init();
-})();
+    toastMessage(msg, "danger");
+  } finally {
+    setBusy(false);
+  }
+});
