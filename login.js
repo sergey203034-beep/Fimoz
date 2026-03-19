@@ -1,3 +1,12 @@
+// В файлах login.js и app_main.js
+const CONFIG = {
+    // ВОЗЬМИ ЭТО ИЗ SETTINGS -> API в Supabase
+    URL: 'https://lzgwikzebvlrgzosgzbr.supabase.co', 
+    KEY: 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG'
+};
+
+
+
 const $ = (id) => document.getElementById(id);
 
 const form = $("loginForm");
