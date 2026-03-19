@@ -61,7 +61,8 @@ function toastMessage(text, kind = "ok") {
 
 function setHint(key, msg) {
   const f = fields[key];
-  if (!f || !f.el || !f.hint) return; // Безопасная проверка
+  // ПРОВЕРКА: если поля или подсказки нет в HTML, просто выходим
+  if (!f || !f.el || !f.hint) return; 
 
   if (!msg) {
     f.el.setAttribute("aria-invalid", "false");
@@ -91,11 +92,14 @@ function setBusy(busy) {
 }
 
 // Навешиваем обработчики ввода только на существующие поля
+// Находим все ключи в объекте fields (email, username, password)
 Object.keys(fields).forEach(key => {
-    if (fields[key].el) {
-        fields[key].el.addEventListener("input", () => setHint(key, null));
-    }
-});
+  const field = fields[key];
+  // ПРОВЕРКА: вешаем событие только если элемент реально найден на странице
+  if (field && field.el) {
+    field.el.addEventListener("input", () => setHint(key, null));
+  }
+});;
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
