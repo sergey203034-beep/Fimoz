@@ -1,81 +1,58 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Вход — Analogue Discord</title>
-    <meta name="color-scheme" content="dark" />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <section class="card" aria-labelledby="title">
-        <header class="card__header">
-          <div class="logo" aria-hidden="true">
-            <div class="logo__mark"></div>
-            <div class="logo__mark"></div>
-            <div class="logo__mark"></div>
-          </div>
-          <h1 id="title" class="title">С возвращением!</h1>
-          <p class="subtitle">Мы так рады видеть тебя снова.</p>
-        </header>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход — BEEP</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Минимальные стили для уведомления (Toast) */
+        #toast {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: #fff;
+            z-index: 1000;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        #toast[data-kind="ok"] { background: #2ecc71; }
+        #toast[data-kind="danger"] { background: #e74c3c; }
+    </style>
+</head>
+<body>
 
-        <form id="loginForm" class="form" novalidate>
-          <div class="field">
-            <label class="label" for="identifier">Почта или имя пользователя <span class="req">*</span></label>
-            <input
-              class="input"
-              id="identifier"
-              name="identifier"
-              type="text"
-              autocomplete="username"
-              placeholder="почта или username"
-              required
-            />
-            <p class="hint" id="identifierHint" aria-live="polite"></p>
-          </div>
+    <div class="auth-container">
+        <form id="loginForm" class="auth-form">
+            <h1>С возвращением!</h1>
+            <p class="auth-subtitle">Войдите в свой аккаунт BEEP</p>
 
-          <div class="field">
-            <label class="label" for="password">Пароль <span class="req">*</span></label>
-            <div class="inputRow">
-              <input
-                class="input"
-                id="password"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                placeholder="Пароль"
-                minlength="1"
-                required
-              />
-              <button class="ghostBtn" type="button" id="togglePassword" aria-label="Показать пароль">
-                Показать
-              </button>
+            <div class="field">
+                <label for="identifier">Электронная почта</label>
+                <input type="email" id="identifier" placeholder="name@example.com" required>
             </div>
-            <p class="hint" id="passwordHint" aria-live="polite"></p>
-          </div>
 
-          <button class="primaryBtn" type="submit" id="submitBtn">Войти</button>
+            <div class="field">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
 
-          <p class="small">
-            Нет аккаунта?
-            <a class="link" href="./index.html" id="createLink">Создать аккаунт</a>
-          </p>
+            <button type="submit" id="submitBtn" class="btn-primary">Войти</button>
+
+            <p class="auth-footer">
+                Нет аккаунта? <a href="index.html">Зарегистрироваться</a>
+            </p>
         </form>
+    </div>
 
-        <footer class="card__footer">
-          <p class="micro">
-            Пока это прототип: аккаунты хранятся локально в IndexedDB (в браузере).
-          </p>
-        </footer>
-      </section>
+    <div id="toast"></div>
 
-      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-    </main>
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <script src="login.js"></script>
 
-    <script src="./db.js"></script>
-    <script src="./login.js"></script>
-  </body>
+</body>
 </html>
