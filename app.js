@@ -4,16 +4,16 @@ const form = $("registerForm");
 const submitBtn = $("submitBtn");
 const toast = $("toast");
 
-// --- КОНФИГ SUPABASE ---
-// Вставь сюда свою новую правильную ссылку
+// Проверь каждую букву! 
+// Правильно: l z g w i k z e b v l r g z o s g z b r
 const SUPABASE_URL = 'https://lzgwikzebvlrgzosgzbr.supabase.co'; 
 const SUPABASE_KEY = 'sb_publishable_e3P4SDhFiLMdj6z539dmng_lRym-gaG';
 
+// Оставь эту функцию, она защищает от ошибок загрузки
 const getSupabase = () => {
   if (!window.supabase) return null;
   return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 };
-
 const fields = {
   email: {
     el: $("email"),
