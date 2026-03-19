@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fimoz Мессенджер</title>
+    <title>Analogue Discord</title>
     <meta name="color-scheme" content="dark" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app">
       <aside class="servers" aria-label="Серверы">
-        <button class="srvBtn srvBtn--home" type="button" id="homeBtn" title="Главная">FM</button>
+        <button class="srvBtn srvBtn--home" type="button" id="homeBtn" title="Главная">DS</button>
         <div class="srvList" id="guildList"></div>
         <div class="srvBottom">
           <button class="srvBtn srvBtn--add" type="button" id="addGuildBtn" title="Добавить сервер">+</button>
@@ -21,11 +21,6 @@
         <div class="chanTop">
           <div class="chanTop__title" id="guildName">Сервер</div>
           <button class="iconBtn" id="guildMenuBtn" type="button" title="Меню">⋯</button>
-        </div>
-        <div class="mainMenu" aria-label="Навигация">
-          <button class="mainMenu__btn" type="button" id="menuFriends">Друзья</button>
-          <button class="mainMenu__btn" type="button" id="menuDMs">ЛС</button>
-          <button class="mainMenu__btn" type="button" id="menuAddFriend">Добавить</button>
         </div>
         <div class="chanList" id="channelList"></div>
         <div class="userBar">
@@ -114,33 +109,10 @@
 
         <form class="composer" id="composer">
           <button class="iconBtn composer__plus" id="attachBtn" type="button" title="Вложения">＋</button>
-          <button class="iconBtn composer__plus" id="emojiBtn" type="button" title="Смайлики" aria-label="Смайлики">☺</button>
-          <button class="iconBtn composer__plus" id="stickerBtn" type="button" title="Стикеры" aria-label="Стикеры">🗂</button>
           <input class="composer__input" id="messageInput" placeholder="Написать сообщение..." autocomplete="off" />
           <button class="primaryBtn composer__send" id="sendBtn" type="submit">Отправить</button>
         </form>
         <input id="filePicker" type="file" class="visuallyHidden" multiple />
-        <input id="stickerPicker" type="file" class="visuallyHidden" accept="image/*" />
-
-        <section class="pickPane pickPane--hidden" id="pickPane" aria-label="Эмодзи и стикеры">
-          <div class="pickPane__top">
-            <div class="pickPane__tabs">
-              <button class="pickTab pickTab--active" type="button" id="pickTabEmoji">Смайлики</button>
-              <button class="pickTab" type="button" id="pickTabStickers">Стикеры</button>
-            </div>
-            <button class="ghostBtn" type="button" id="pickClose">Закрыть</button>
-          </div>
-          <div class="pickPane__body">
-            <div class="emojiGrid" id="emojiGrid"></div>
-            <div class="stickerPane stickerPane--hidden" id="stickerPane">
-              <div class="stickerPane__actions">
-                <button class="primaryBtn" style="width:auto" type="button" id="createStickerBtn">Создать из фото</button>
-              </div>
-              <div class="stickerGrid" id="stickerGrid"></div>
-              <p class="note" id="stickerNote"></p>
-            </div>
-          </div>
-        </section>
       </main>
 
       <aside class="members" id="members" aria-label="Участники">
@@ -181,24 +153,5 @@
     <script src="./voice.js"></script>
     <script src="./app_settings.js"></script>
     <script src="./app_main.js"></script>
-    <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyBJCPwsppXrhAYvfMKhQu0qvexadm1bPjc",
-    authDomain: "fimozmessenger.firebaseapp.com",
-    projectId: "fimozmessenger",
-    storageBucket: "fimozmessenger.firebasestorage.app",
-    messagingSenderId: "378677630588",
-    appId: "1:378677630588:web:d5e60e35a74565f0e69bf9"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>
   </body>
 </html>

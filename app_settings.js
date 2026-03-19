@@ -342,28 +342,6 @@
     );
     contentEl().appendChild(info);
 
-    const avatarCard = card(
-      "Аватар",
-      `
-      <div class="setRow" style="align-items:flex-start">
-        <div class="setRow__stack">
-          <div class="setRow__label">Выбери аватар</div>
-          <div class="setRow__sub">5 стартовых + можно загрузить свой (сохраняется локально).</div>
-          <div class="avatarGrid" id="avatarGrid"></div>
-          <div class="miniForm__row" style="margin-top:10px">
-            <input class="input" id="avatarUpload" type="file" accept="image/*" />
-            <button class="ghostBtn" style="width:auto" id="avatarReset" type="button">Сбросить</button>
-          </div>
-          <p class="note" id="avatarNote"></p>
-        </div>
-        <div class="setRow__right">
-          <div class="avatarBig" id="avatarBig"></div>
-        </div>
-      </div>
-    `,
-    );
-    contentEl().appendChild(avatarCard);
-
     const edit = card(
       "Редактирование аккаунта",
       `
@@ -423,7 +401,6 @@
     if (m === "USERNAME_EXISTS") return "Такой username уже занят.";
     if (m === "BAD_PASSWORD") return "Неверный старый пароль.";
     if (m === "NOT_FOUND") return "Пользователь не найден.";
-    if (m === "BAD_AVATAR") return "Невалидная картинка для аватара.";
     return "Не удалось выполнить действие.";
   }
 
@@ -432,144 +409,6 @@
     const saveEmailBtn = $("saveEmail");
     const deleteBtn = $("deleteAccount");
     const passwordForm = $("passwordForm");
-    const avatarGrid = $("avatarGrid");
-    const avatarBig = $("avatarBig");
-    const avatarUpload = $("avatarUpload");
-    const avatarReset = $("avatarReset");
-    const avatarNote = $("avatarNote");
-
-    const presetIds = ["p1", "p2", "p3", "p4", "p5"];
-
-    function presetBackground(presetId) {
-      const id = presetId || "p1";
-      if (id === "p2") return "linear-gradient(135deg, rgba(255,77,94,.85), rgba(88,101,242,.85))";
-      if (id === "p3") return "linear-gradient(135deg, rgba(74,222,128,.85), rgba(88,101,242,.85))";
-      if (id === "p4") return "linear-gradient(135deg, rgba(250,204,21,.85), rgba(255,77,94,.85))";
-      if (id === "p5") return "linear-gradient(135deg, rgba(147,51,234,.85), rgba(59,130,246,.85))";
-      return "linear-gradient(135deg, rgba(88,101,242,.85), rgba(63,73,200,.85))";
-    }
-
-    function initials(name) {
-      const n = String(name || "").trim();
-      if (!n) return "?";
-      const parts = n.split(/\\s+/).filter(Boolean);
-      const a = (parts[0] || "").slice(0, 1).toUpperCase();
-      const b = (parts[1] || "").slice(0, 1).toUpperCase();
-      return (a + b) || a;
-    }
-
-    function applyAvatarPreview(avatar) {
-      if (!avatarBig) return;
-      const name = (ctx.user && ctx.user.username) || (ctx.session && ctx.session.username) || "user";
-      avatarBig.textContent = initials(name);
-      avatarBig.style.background = "";
-      avatarBig.style.backgroundImage = "";
-      avatarBig.style.backgroundSize = "";
-      avatarBig.style.backgroundPosition = "";
-      avatarBig.style.backgroundColor = "";
-
-      if (!avatar || typeof avatar !== "object") {
-        avatarBig.style.background = presetBackground("p1");
-        return;
-      }
-      if (avatar.kind === "custom" && typeof avatar.dataUrl === "string") {
-        avatarBig.style.backgroundImage = `url("${avatar.dataUrl}")`;
-        avatarBig.style.backgroundSize = "cover";
-        avatarBig.style.backgroundPosition = "center";
-        avatarBig.style.backgroundColor = "rgba(255,255,255,.06)";
-        avatarBig.textContent = "";
-        return;
-      }
-      avatarBig.style.background = presetBackground(avatar.presetId || "p1");
-    }
-
-    async function setAvatar(nextAvatar) {
-      if (!ctx.user || !ctx.user.id) return;
-      try {
-        const res = await window.UserDB.updateUserProfile({ id: ctx.user.id, avatar: nextAvatar });
-        ctx.user.avatar = res.avatar || nextAvatar || null;
-        applyAvatarPreview(ctx.user.avatar);
-        if (typeof ctx.onSessionUpdate === "function") ctx.onSessionUpdate({ avatar: ctx.user.avatar || null });
-        if (avatarNote) avatarNote.textContent = "Сохранено.";
-      } catch (err) {
-        if (avatarNote) avatarNote.textContent = errToText(err);
-      }
-    }
-
-    function renderAvatarGrid() {
-      if (!avatarGrid) return;
-      avatarGrid.innerHTML = "";
-      const cur = (ctx.user && ctx.user.avatar) || null;
-      for (const pid of presetIds) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "avatarPick" + (cur && cur.kind === "preset" && cur.presetId === pid ? " avatarPick--active" : "");
-        b.title = pid;
-        b.innerHTML = `<span class="avatarPick__swatch" style="background:${escapeHtml(presetBackground(pid))}"></span><span class="avatarPick__label">${escapeHtml(pid.toUpperCase())}</span>`;
-        b.addEventListener("click", async () => {
-          await setAvatar({ kind: "preset", presetId: pid });
-          renderAvatarGrid();
-        });
-        avatarGrid.appendChild(b);
-      }
-    }
-
-    async function readAndDownscaleImage(file) {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result || ""));
-        r.onerror = () => reject(new Error("READ_FAILED"));
-        r.readAsDataURL(file);
-      });
-      if (!dataUrl.startsWith("data:image/")) throw new Error("BAD_AVATAR");
-
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = () => reject(new Error("BAD_AVATAR"));
-        i.src = dataUrl;
-      });
-      const size = 256;
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      const ctx2 = canvas.getContext("2d");
-      if (!ctx2) return dataUrl;
-      const w = img.naturalWidth || img.width || size;
-      const h = img.naturalHeight || img.height || size;
-      const s = Math.min(w, h);
-      const sx = Math.floor((w - s) / 2);
-      const sy = Math.floor((h - s) / 2);
-      ctx2.drawImage(img, sx, sy, s, s, 0, 0, size, size);
-      return canvas.toDataURL("image/png");
-    }
-
-    applyAvatarPreview((ctx.user && ctx.user.avatar) || null);
-    renderAvatarGrid();
-
-    if (avatarUpload) {
-      avatarUpload.addEventListener("change", async () => {
-        const f = (avatarUpload.files && avatarUpload.files[0]) || null;
-        avatarUpload.value = "";
-        if (!f) return;
-        if (avatarNote) avatarNote.textContent = "Загружаю...";
-        try {
-          const dataUrl = await readAndDownscaleImage(f);
-          await setAvatar({ kind: "custom", dataUrl });
-          renderAvatarGrid();
-        } catch (err) {
-          if (avatarNote) avatarNote.textContent = errToText(err);
-        }
-      });
-    }
-
-    if (avatarReset) {
-      avatarReset.addEventListener("click", async () => {
-        if (avatarNote) avatarNote.textContent = "";
-        await setAvatar({ kind: "preset", presetId: "p1" });
-        renderAvatarGrid();
-      });
-    }
 
     profileForm.addEventListener("submit", async (e) => {
       e.preventDefault();

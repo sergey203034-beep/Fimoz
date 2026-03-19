@@ -1,76 +1,79 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Вход — Fimoz Мессенджер</title>
-  <meta name="color-scheme" content="dark" />
-  <link rel="stylesheet" href="./styles.css" />
-  
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-  <main class="shell">
-    <section class="card" aria-labelledby="title">
-      <header class="card__header">
-        <div class="logo" aria-hidden="true">
-          <div class="logo__mark"></div>
-          <div class="logo__mark"></div>
-          <div class="logo__mark"></div>
-        </div>
-        <h1 id="title" class="title">С возвращением!</h1>
-        <p class="subtitle">Мы так рады видеть тебя снова.</p>
-      </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Вход — Analogue Discord</title>
+    <meta name="color-scheme" content="dark" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card" aria-labelledby="title">
+        <header class="card__header">
+          <div class="logo" aria-hidden="true">
+            <div class="logo__mark"></div>
+            <div class="logo__mark"></div>
+            <div class="logo__mark"></div>
+          </div>
+          <h1 id="title" class="title">С возвращением!</h1>
+          <p class="subtitle">Мы так рады видеть тебя снова.</p>
+        </header>
 
-      <form id="loginForm" class="form" novalidate>
-        <div class="field">
-          <label class="label" for="identifier">Почта <span class="req">*</span></label>
-          <input
-            class="input"
-            id="identifier"
-            name="identifier"
-            type="email" 
-            autocomplete="email"
-            placeholder="example@mail.com"
-            required
-          />
-          <p class="hint" id="identifierHint" aria-live="polite"></p>
-        </div>
-
-        <div class="field">
-          <label class="label" for="password">Пароль <span class="req">*</span></label>
-          <div class="inputRow">
+        <form id="loginForm" class="form" novalidate>
+          <div class="field">
+            <label class="label" for="identifier">Почта или имя пользователя <span class="req">*</span></label>
             <input
               class="input"
-              id="password"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              placeholder="Пароль"
+              id="identifier"
+              name="identifier"
+              type="text"
+              autocomplete="username"
+              placeholder="почта или username"
               required
             />
+            <p class="hint" id="identifierHint" aria-live="polite"></p>
           </div>
-          <p class="hint" id="passwordHint" aria-live="polite"></p>
-        </div>
 
-        <button class="primaryBtn" type="submit" id="submitBtn">Войти</button>
+          <div class="field">
+            <label class="label" for="password">Пароль <span class="req">*</span></label>
+            <div class="inputRow">
+              <input
+                class="input"
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Пароль"
+                minlength="1"
+                required
+              />
+              <button class="ghostBtn" type="button" id="togglePassword" aria-label="Показать пароль">
+                Показать
+              </button>
+            </div>
+            <p class="hint" id="passwordHint" aria-live="polite"></p>
+          </div>
 
-        <p class="small">
-          Нет аккаунта?
-          <a class="link" href="./index.html" id="createLink">Создать аккаунт</a>
-        </p>
-      </form>
+          <button class="primaryBtn" type="submit" id="submitBtn">Войти</button>
 
-      <footer class="card__footer">
-        <p class="micro">
-          Аккаунты теперь работают через облако Supabase.
-        </p>
-      </footer>
-    </section>
+          <p class="small">
+            Нет аккаунта?
+            <a class="link" href="./index.html" id="createLink">Создать аккаунт</a>
+          </p>
+        </form>
 
-    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-  </main>
+        <footer class="card__footer">
+          <p class="micro">
+            Пока это прототип: аккаунты хранятся локально в IndexedDB (в браузере).
+          </p>
+        </footer>
+      </section>
 
-  <script src="./login.js"></script>
-</body>
+      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    </main>
+
+    <script src="./db.js"></script>
+    <script src="./login.js"></script>
+  </body>
 </html>

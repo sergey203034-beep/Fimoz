@@ -1,6 +1,6 @@
 (() => {
   const DB_NAME = "ds_proto";
-  const DB_VERSION = 6;
+  const DB_VERSION = 5;
   const STORE_USERS = "users";
   const STORE_GUILDS = "guilds";
   const STORE_CHANNELS = "channels";
@@ -10,7 +10,6 @@
   const STORE_DM_THREADS = "dmThreads";
   const STORE_DM_MESSAGES = "dmMessages";
   const STORE_ATTACHMENTS = "attachments";
-  const STORE_STICKERS = "stickers";
   const STORE_GUILD_ROLES = "guildRoles";
   const STORE_GUILD_MEMBERS = "guildMembers";
 
@@ -77,11 +76,6 @@
         if (!db.objectStoreNames.contains(STORE_ATTACHMENTS)) {
           const store = db.createObjectStore(STORE_ATTACHMENTS, { keyPath: "id" });
           store.createIndex("messageKey", "messageKey", { unique: false }); // "ch:<id>" or "dm:<id>"
-          store.createIndex("createdAt", "createdAt", { unique: false });
-        }
-
-        if (!db.objectStoreNames.contains(STORE_STICKERS)) {
-          const store = db.createObjectStore(STORE_STICKERS, { keyPath: "id" });
           store.createIndex("createdAt", "createdAt", { unique: false });
         }
 
@@ -179,7 +173,6 @@
       username,
       usernameNorm,
       pass,
-      avatar: { kind: "preset", presetId: "p1" },
       createdAt: new Date().toISOString(),
     };
 
@@ -265,29 +258,10 @@
       u.usernameNorm = usernameNorm;
     }
 
-    // avatar: { kind: "preset", presetId } | { kind: "custom", dataUrl }
-    if (arguments.length && Object.prototype.hasOwnProperty.call(arguments[0] || {}, "avatar")) {
-      const a = (arguments[0] || {}).avatar;
-      if (a == null) {
-        u.avatar = null;
-      } else if (a && typeof a === "object") {
-        const kind = a.kind === "custom" ? "custom" : "preset";
-        if (kind === "custom") {
-          if (typeof a.dataUrl !== "string" || !a.dataUrl.startsWith("data:image/")) throw new Error("BAD_AVATAR");
-          u.avatar = { kind: "custom", dataUrl: a.dataUrl };
-        } else {
-          const pid = typeof a.presetId === "string" ? a.presetId : "p1";
-          u.avatar = { kind: "preset", presetId: pid };
-        }
-      } else {
-        throw new Error("BAD_AVATAR");
-      }
-    }
-
     store.put(u);
     await txDone(tx);
     db.close();
-    return { id: u.id, email: u.email, username: u.username, avatar: u.avatar || null };
+    return { id: u.id, email: u.email, username: u.username };
   }
 
   async function changePassword({ id, oldPassword, newPassword }) {
@@ -733,10 +707,6 @@
       throw new Error("FORBIDDEN");
     }
     m.deletedAt = new Date().toISOString();
-    m.content = "";
-    m.editedAt = null;
-    m.replyTo = null;
-    m.reactions = {};
     store.put(m);
     await txDone(tx);
     db.close();
@@ -767,7 +737,6 @@
     const now = new Date().toISOString();
     const out = [];
     for (const f of files) {
-      const kind = String(f && f.name ? f.name : "").startsWith("sticker__") ? "sticker" : "file";
       const rec = {
         id: makeAttId(),
         messageKey,
@@ -775,11 +744,10 @@
         type: f.type || "application/octet-stream",
         size: f.size || 0,
         blob: f,
-        kind,
         createdAt: now,
       };
       store.add(rec);
-      out.push({ id: rec.id, name: rec.name, type: rec.type, size: rec.size, kind: rec.kind });
+      out.push({ id: rec.id, name: rec.name, type: rec.type, size: rec.size });
     }
     await txDone(tx);
     db.close();
@@ -793,20 +761,6 @@
     const list = await cursorAll(store.index("messageKey"), IDBKeyRange.only(messageKey));
     db.close();
     return list;
-  }
-
-  async function attachmentsDeleteByMessageKey({ messageKey }) {
-    const db = await openDb();
-    const tx = db.transaction(STORE_ATTACHMENTS, "readwrite");
-    const store = tx.objectStore(STORE_ATTACHMENTS);
-    const idx = store.index("messageKey");
-    const list = await cursorAll(idx, IDBKeyRange.only(messageKey));
-    for (const a of list) {
-      store.delete(a.id);
-    }
-    await txDone(tx);
-    db.close();
-    return true;
   }
 
   async function dmEnsureThread({ userA, userB }) {
@@ -909,10 +863,6 @@
       throw new Error("FORBIDDEN");
     }
     m.deletedAt = new Date().toISOString();
-    m.content = "";
-    m.editedAt = null;
-    m.replyTo = null;
-    m.reactions = {};
     store.put(m);
     await txDone(tx);
     db.close();
@@ -978,105 +928,6 @@
   window.AttDB = {
     add: attachmentsAdd,
     list: attachmentsList,
-    deleteByMessageKey: attachmentsDeleteByMessageKey,
-  };
-
-  function makeStickerId() {
-    if (crypto.randomUUID) return crypto.randomUUID();
-    return `s_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  }
-
-  function makeStickerSvg(label, a, b) {
-    const txt = String(label || "🙂").slice(0, 2);
-    const c1 = a || "#5865f2";
-    const c2 = b || "#ff4d5e";
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${c1}"/>
-      <stop offset="1" stop-color="${c2}"/>
-    </linearGradient>
-    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="rgba(0,0,0,.45)"/>
-    </filter>
-  </defs>
-  <rect x="20" y="20" width="216" height="216" rx="56" fill="url(#g)" filter="url(#s)"/>
-  <text x="128" y="150" font-family="system-ui,Segoe UI,Arial" font-size="92" text-anchor="middle">${txt}</text>
-</svg>`;
-  }
-
-  async function stickersEnsureSeed() {
-    const db = await openDb();
-    const tx = db.transaction(STORE_STICKERS, "readwrite");
-    const store = tx.objectStore(STORE_STICKERS);
-    const existing = await cursorAll(store);
-    if (existing.length) {
-      db.close();
-      return;
-    }
-    const now = new Date().toISOString();
-    const seed = [
-      { name: "Hello", svg: makeStickerSvg("👋", "#5865f2", "#3f49c8") },
-      { name: "Love", svg: makeStickerSvg("❤️", "#ff4d5e", "#5865f2") },
-      { name: "LOL", svg: makeStickerSvg("😂", "#facc15", "#ff4d5e") },
-      { name: "OK", svg: makeStickerSvg("👌", "#4ade80", "#5865f2") },
-      { name: "Wow", svg: makeStickerSvg("😮", "#9333ea", "#3b82f6") },
-    ];
-    for (const s of seed) {
-      const rec = {
-        id: makeStickerId(),
-        name: s.name,
-        type: "image/svg+xml",
-        blob: new Blob([s.svg], { type: "image/svg+xml" }),
-        createdAt: now,
-      };
-      store.add(rec);
-    }
-    await txDone(tx);
-    db.close();
-  }
-
-  async function stickersList() {
-    const db = await openDb();
-    const tx = db.transaction(STORE_STICKERS, "readonly");
-    const store = tx.objectStore(STORE_STICKERS);
-    const list = await cursorAll(store.index("createdAt"));
-    db.close();
-    return list.map((x) => ({ id: x.id, name: x.name, type: x.type, createdAt: x.createdAt }));
-  }
-
-  async function stickersGet({ id }) {
-    const db = await openDb();
-    const tx = db.transaction(STORE_STICKERS, "readonly");
-    const store = tx.objectStore(STORE_STICKERS);
-    const s = await reqToPromise(store.get(id));
-    db.close();
-    return s || null;
-  }
-
-  async function stickersAdd({ name, blob, type }) {
-    const db = await openDb();
-    const tx = db.transaction(STORE_STICKERS, "readwrite");
-    const store = tx.objectStore(STORE_STICKERS);
-    const rec = {
-      id: makeStickerId(),
-      name: String(name || "My sticker").slice(0, 60),
-      type: String(type || (blob && blob.type) || "image/png"),
-      blob,
-      createdAt: new Date().toISOString(),
-    };
-    store.add(rec);
-    await txDone(tx);
-    db.close();
-    return { id: rec.id, name: rec.name, type: rec.type, createdAt: rec.createdAt };
-  }
-
-  window.StickerDB = {
-    ensureSeed: stickersEnsureSeed,
-    list: stickersList,
-    get: stickersGet,
-    add: stickersAdd,
   };
 
   function makeRoleId() {

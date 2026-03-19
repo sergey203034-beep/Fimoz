@@ -16,18 +16,6 @@ const voicePaneEl = $("voicePane");
 const voicePeersEl = $("voicePeers");
 const filePicker = $("filePicker");
 const attachBtn = $("attachBtn");
-const stickerPicker = $("stickerPicker");
-const pickPaneEl = $("pickPane");
-const emojiGridEl = $("emojiGrid");
-const stickerGridEl = $("stickerGrid");
-const stickerPaneEl = $("stickerPane");
-const stickerNoteEl = $("stickerNote");
-const pickTabEmoji = $("pickTabEmoji");
-const pickTabStickers = $("pickTabStickers");
-const pickCloseBtn = $("pickClose");
-const createStickerBtn = $("createStickerBtn");
-const emojiBtn = $("emojiBtn");
-const stickerBtn = $("stickerBtn");
 const searchBarEl = $("searchBar");
 const searchInput = $("searchInput");
 const searchMeta = $("searchMeta");
@@ -86,9 +74,6 @@ function initials(name) {
 
 const state = {
   me: null,
-  meProfile: null,
-  usersByName: new Map(),
-  stickers: [],
   guilds: [],
   channels: [],
   activeGuildId: null,
@@ -132,10 +117,7 @@ async function boot() {
   await ensureUserId();
 
   $("meName").textContent = state.me.username;
-  await hydrateMeProfile();
-  applyAvatarToEl($("avatar"), state.meProfile && state.meProfile.avatar ? state.meProfile.avatar : null, state.me.username, {
-    big: false,
-  });
+  $("avatar").textContent = initials(state.me.username);
 
   if (!window.ChatDB) {
     toastMessage("База чатов недоступна.", "danger");
@@ -149,255 +131,22 @@ async function boot() {
         sessionStorage.removeItem("proto_session");
         window.location.href = "./login.html";
       },
-      onSessionUpdate: ({ username, avatar }) => {
+      onSessionUpdate: ({ username }) => {
         if (username) {
           state.me.username = username;
           $("meName").textContent = username;
-          applyAvatarToEl($("avatar"), state.meProfile && state.meProfile.avatar ? state.meProfile.avatar : null, username, {
-            big: false,
-          });
-        }
-        if (typeof avatar !== "undefined") {
-          state.meProfile = state.meProfile || { id: state.me.userId, username: state.me.username, avatar: null };
-          state.meProfile.avatar = avatar;
-          applyAvatarToEl($("avatar"), avatar, state.me.username, { big: false });
+          $("avatar").textContent = initials(username);
         }
       },
     });
   }
 
   await window.ChatDB.ensureSeed({ username: state.me.username });
-  if (window.StickerDB) {
-    try {
-      await window.StickerDB.ensureSeed();
-      state.stickers = await window.StickerDB.list();
-    } catch {}
-  }
   state.guilds = await window.ChatDB.listGuilds();
   renderGuilds();
 
   const firstGuild = state.guilds[0];
   if (firstGuild) await setActiveGuild(firstGuild.id);
-}
-
-function openPickPane(kind) {
-  if (!pickPaneEl) return;
-  pickPaneEl.classList.remove("pickPane--hidden");
-  setPickTab(kind === "stickers" ? "stickers" : "emoji");
-}
-
-function closePickPane() {
-  if (!pickPaneEl) return;
-  pickPaneEl.classList.add("pickPane--hidden");
-}
-
-function setPickTab(tab) {
-  const isEmoji = tab !== "stickers";
-  pickTabEmoji.classList.toggle("pickTab--active", isEmoji);
-  pickTabStickers.classList.toggle("pickTab--active", !isEmoji);
-  if (stickerPaneEl) stickerPaneEl.classList.toggle("stickerPane--hidden", isEmoji);
-  if (emojiGridEl) emojiGridEl.style.display = isEmoji ? "" : "none";
-  if (!isEmoji) renderStickerGrid();
-}
-
-function appendEmojiToInput(emoji) {
-  const e = String(emoji || "");
-  if (!e) return;
-  const el = messageInput;
-  const start = typeof el.selectionStart === "number" ? el.selectionStart : el.value.length;
-  const end = typeof el.selectionEnd === "number" ? el.selectionEnd : el.value.length;
-  el.value = el.value.slice(0, start) + e + el.value.slice(end);
-  const nextPos = start + e.length;
-  try {
-    el.setSelectionRange(nextPos, nextPos);
-  } catch {}
-  el.focus();
-}
-
-function renderEmojiGrid() {
-  if (!emojiGridEl) return;
-  const emojis = [
-    "😀",
-    "😁",
-    "😂",
-    "🤣",
-    "😊",
-    "😍",
-    "😘",
-    "😎",
-    "😮",
-    "😢",
-    "😭",
-    "😡",
-    "👍",
-    "👎",
-    "👏",
-    "🙏",
-    "🔥",
-    "🎉",
-    "❤️",
-    "💔",
-    "✅",
-    "❌",
-    "⭐",
-    "💯",
-  ];
-  emojiGridEl.innerHTML = "";
-  for (const e of emojis) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "emojiBtn";
-    b.textContent = e;
-    b.addEventListener("click", () => appendEmojiToInput(e));
-    emojiGridEl.appendChild(b);
-  }
-}
-
-async function renderStickerGrid() {
-  if (!stickerGridEl) return;
-  stickerGridEl.innerHTML = "";
-  if (!window.StickerDB) {
-    stickerGridEl.innerHTML = `<p class="note">Стикеры недоступны.</p>`;
-    return;
-  }
-  try {
-    state.stickers = await window.StickerDB.list();
-  } catch {}
-  if (!state.stickers.length) {
-    stickerGridEl.innerHTML = `<p class="note">Пока нет стикеров.</p>`;
-    return;
-  }
-  for (const s of state.stickers) {
-    const tile = document.createElement("button");
-    tile.type = "button";
-    tile.className = "stickerTile";
-    tile.title = s.name || "sticker";
-    tile.innerHTML = `<span class="note">...</span>`;
-    tile.addEventListener("click", async () => {
-      await sendSticker(s.id);
-      closePickPane();
-    });
-    stickerGridEl.appendChild(tile);
-    // preview
-    try {
-      const full = await window.StickerDB.get({ id: s.id });
-      if (full && full.blob) {
-        const url = URL.createObjectURL(full.blob);
-        tile.innerHTML = `<img class="stickerImg" src="${url}" alt="" />`;
-      }
-    } catch {}
-  }
-}
-
-async function sendSticker(stickerId) {
-  if (!window.StickerDB) return;
-  const s = await window.StickerDB.get({ id: stickerId });
-  if (!s || !s.blob) return;
-  const blob = s.blob;
-  const name = `sticker__${stickerId}.png`;
-  const file = new File([blob], name, { type: blob.type || "image/png" });
-  try {
-    let msg;
-    if (state.scope.kind === "dm") {
-      msg = await window.DMDB.addMessage({ threadId: state.dm.threadId, author: state.me.username, content: "(sticker)" });
-      await window.AttDB.add({ messageKey: `dm:${msg.id}`, files: [file] });
-    } else {
-      msg = await window.ChatDB.addMessage({ channelId: state.activeChannelId, author: state.me.username, content: "(sticker)" });
-      await window.AttDB.add({ messageKey: `ch:${msg.id}`, files: [file] });
-    }
-    await renderMessages();
-  } catch {
-    toastMessage("Не удалось отправить стикер.", "danger");
-  }
-}
-
-async function createStickerFromFile(file) {
-  const f = file;
-  if (!f) return;
-  const dataUrl = await new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result || ""));
-    r.onerror = () => reject(new Error("READ_FAILED"));
-    r.readAsDataURL(f);
-  });
-  if (!String(dataUrl).startsWith("data:image/")) throw new Error("BAD_IMAGE");
-  const img = await new Promise((resolve, reject) => {
-    const i = new Image();
-    i.onload = () => resolve(i);
-    i.onerror = () => reject(new Error("BAD_IMAGE"));
-    i.src = dataUrl;
-  });
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx2 = canvas.getContext("2d");
-  if (!ctx2) throw new Error("NO_CANVAS");
-  const w = img.naturalWidth || img.width || size;
-  const h = img.naturalHeight || img.height || size;
-  const s = Math.min(w, h);
-  const sx = Math.floor((w - s) / 2);
-  const sy = Math.floor((h - s) / 2);
-  ctx2.drawImage(img, sx, sy, s, s, 0, 0, size, size);
-  const outUrl = canvas.toDataURL("image/png");
-  const outBlob = await (await fetch(outUrl)).blob();
-  const name = (f.name || "sticker").replace(/\.[^.]+$/, "");
-  return window.StickerDB.add({ name, blob: outBlob, type: "image/png" });
-}
-
-async function hydrateMeProfile() {
-  try {
-    if (window.UserDB && state.me && state.me.userId) {
-      const u = await window.UserDB.getUserById(state.me.userId);
-      if (u) state.meProfile = u;
-    }
-  } catch {}
-  await hydrateUsersByName();
-}
-
-async function hydrateUsersByName() {
-  try {
-    if (!window.FriendsDB) return;
-    const list = await window.FriendsDB.listUsers();
-    state.usersByName = new Map();
-    for (const u of list) state.usersByName.set(u.username, u);
-  } catch {}
-}
-
-function presetBackground(presetId) {
-  const id = presetId || "p1";
-  if (id === "p2") return "linear-gradient(135deg, rgba(255,77,94,.85), rgba(88,101,242,.85))";
-  if (id === "p3") return "linear-gradient(135deg, rgba(74,222,128,.85), rgba(88,101,242,.85))";
-  if (id === "p4") return "linear-gradient(135deg, rgba(250,204,21,.85), rgba(255,77,94,.85))";
-  if (id === "p5") return "linear-gradient(135deg, rgba(147,51,234,.85), rgba(59,130,246,.85))";
-  return "linear-gradient(135deg, rgba(88,101,242,.85), rgba(63,73,200,.85))";
-}
-
-function applyAvatarToEl(el, avatar, name, opts) {
-  if (!el) return;
-  const big = !!(opts && opts.big);
-  el.textContent = initials(name);
-  el.style.background = "";
-  el.style.backgroundImage = "";
-  el.style.backgroundSize = "";
-  el.style.backgroundPosition = "";
-  el.style.backgroundColor = "";
-  if (big) {
-    el.style.borderRadius = "14px";
-  }
-  if (!avatar || typeof avatar !== "object") {
-    el.style.background = presetBackground("p1");
-    return;
-  }
-  if (avatar.kind === "custom" && typeof avatar.dataUrl === "string") {
-    el.textContent = "";
-    el.style.backgroundImage = `url("${avatar.dataUrl}")`;
-    el.style.backgroundSize = "cover";
-    el.style.backgroundPosition = "center";
-    el.style.backgroundColor = "rgba(255,255,255,.06)";
-    return;
-  }
-  el.style.background = presetBackground(avatar.presetId || "p1");
 }
 
 async function setActiveGuild(guildId) {
@@ -531,7 +280,7 @@ async function renderMessages() {
       const contentHtml = deleted ? txt : highlightText(rawContent, state.search.q);
 
       el.innerHTML = `
-        <div class="msg__avatar" data-ava="1">${escapeHtml(initials(who))}</div>
+        <div class="msg__avatar">${escapeHtml(initials(who))}</div>
         <div class="msg__body">
           <div class="msg__meta">
             <span class="msg__author">${who}</span>
@@ -546,15 +295,9 @@ async function renderMessages() {
       `;
       messagesEl.appendChild(el);
 
-      // avatar rendering (if known)
-      const aEl = el.querySelector('[data-ava="1"]');
-      const u = state.usersByName && state.usersByName.get ? state.usersByName.get(whoRaw) : null;
-      const ava = u && u.avatar ? u.avatar : whoRaw === state.me.username && state.meProfile ? state.meProfile.avatar : null;
-      applyAvatarToEl(aEl, ava, whoRaw, { big: false });
-
-      // attachments (не показываем для удалённых сообщений)
+      // attachments
       const msgKey = state.scope.kind === "dm" ? `dm:${m.id}` : `ch:${m.id}`;
-      const attList = deleted ? [] : await window.AttDB.list({ messageKey: msgKey });
+      const attList = await window.AttDB.list({ messageKey: msgKey });
       const grid = el.querySelector('[data-att="1"]');
       if (grid && attList.length) {
         for (const a of attList) {
@@ -562,13 +305,9 @@ async function renderMessages() {
           item.className = "attachItem";
           if (a.type && a.type.startsWith("image/")) {
             const url = URL.createObjectURL(a.blob);
-            if (a.kind === "sticker") {
-              item.innerHTML = `<img class="attachImg--sticker" src="${url}" alt="" />`;
-            } else {
-              item.innerHTML = `<img class="attachImg" src="${url}" alt="" /><div class="attachName">${escapeHtml(
-                a.name,
-              )}</div>`;
-            }
+            item.innerHTML = `<img class="attachImg" src="${url}" alt="" /><div class="attachName">${escapeHtml(
+              a.name,
+            )}</div>`;
           } else {
             item.innerHTML = `<div class="attachName">${escapeHtml(a.name)}</div>`;
           }
@@ -616,17 +355,8 @@ async function renderMessages() {
         if (act === "delete") {
           const ok = confirm("Удалить сообщение?");
           if (!ok) return;
-          try {
-            if (state.scope.kind === "dm") await window.DMDB.deleteMessage({ messageId: msg.id, author: state.me.username });
-            else await window.ChatDB.deleteMessage({ messageId: msg.id, author: state.me.username });
-
-            if (window.AttDB && typeof window.AttDB.deleteByMessageKey === "function") {
-              const messageKey = state.scope.kind === "dm" ? `dm:${msg.id}` : `ch:${msg.id}`;
-              await window.AttDB.deleteByMessageKey({ messageKey });
-            }
-          } catch {
-            toastMessage("Не удалось удалить сообщение.", "danger");
-          }
+          if (state.scope.kind === "dm") await window.DMDB.deleteMessage({ messageId: msg.id, author: state.me.username });
+          else await window.ChatDB.deleteMessage({ messageId: msg.id, author: state.me.username });
           await renderMessages();
         }
       });
@@ -728,69 +458,20 @@ searchInput.addEventListener("input", () => {
 });
 
 function renderMembers() {
-  // Правая колонка: участники сервера или друзья (для ЛС/друзей)
-  const isFriendsPane = state.mode === "home" || state.scope.kind === "dm";
-  $("membersTitle").textContent = isFriendsPane ? "Друзья" : "Участники";
-  memberListEl.innerHTML = "";
-
-  if (isFriendsPane) {
-    (async () => {
-      if (!window.FriendsDB || !state.me.userId) {
-        const row = document.createElement("div");
-        row.className = "msgEmpty";
-        row.textContent = "Друзья недоступны.";
-        memberListEl.appendChild(row);
-        return;
-      }
-      const fr = await window.FriendsDB.listFriends({ userId: state.me.userId });
-      const allUsers = await window.FriendsDB.listUsers();
-      if (!fr.length) {
-        const row = document.createElement("div");
-        row.className = "msgEmpty";
-        row.textContent = "Пока нет друзей.";
-        memberListEl.appendChild(row);
-        return;
-      }
-      for (const f of fr) {
-        const otherId = f.users[0] === state.me.userId ? f.users[1] : f.users[0];
-        const u = allUsers.find((x) => x.id === otherId);
-        const name = u ? u.username : otherId;
-        const row = document.createElement("div");
-        row.className = "memRow";
-        row.style.cursor = "pointer";
-        row.innerHTML = `
-          <div class="memRow__avatar" data-ava="1">${escapeHtml(initials(name))}</div>
-          <div class="memRow__name">${escapeHtml(name)}</div>
-          <div class="memRow__dot memRow__dot--online"></div>
-        `;
-        const aEl = row.querySelector('[data-ava="1"]');
-        applyAvatarToEl(aEl, u && u.avatar ? u.avatar : null, name, { big: false });
-        row.addEventListener("click", async () => {
-          await openDM(otherId, name);
-        });
-        memberListEl.appendChild(row);
-      }
-    })();
-    return;
-  }
-
   // MVP: участники = ты + system
   const members = [
     { name: state.me.username, status: "online" },
     { name: "system", status: "idle" },
   ];
+  memberListEl.innerHTML = "";
   for (const m of members) {
     const row = document.createElement("div");
     row.className = "memRow";
     row.innerHTML = `
-      <div class="memRow__avatar" data-ava="1">${escapeHtml(initials(m.name))}</div>
+      <div class="memRow__avatar">${escapeHtml(initials(m.name))}</div>
       <div class="memRow__name">${escapeHtml(m.name)}</div>
       <div class="memRow__dot memRow__dot--${escapeHtml(m.status)}"></div>
     `;
-    const aEl = row.querySelector('[data-ava="1"]');
-    const u = state.usersByName && state.usersByName.get ? state.usersByName.get(m.name) : null;
-    const ava = u && u.avatar ? u.avatar : m.name === state.me.username && state.meProfile ? state.meProfile.avatar : null;
-    applyAvatarToEl(aEl, ava, m.name, { big: false });
     memberListEl.appendChild(row);
   }
 }
@@ -853,34 +534,6 @@ filePicker.addEventListener("change", async () => {
     toastMessage("Не удалось добавить вложение.", "danger");
   }
 });
-
-renderEmojiGrid();
-if (emojiBtn) emojiBtn.addEventListener("click", () => openPickPane("emoji"));
-if (stickerBtn) stickerBtn.addEventListener("click", () => openPickPane("stickers"));
-if (pickCloseBtn) pickCloseBtn.addEventListener("click", closePickPane);
-if (pickTabEmoji) pickTabEmoji.addEventListener("click", () => setPickTab("emoji"));
-if (pickTabStickers) pickTabStickers.addEventListener("click", () => setPickTab("stickers"));
-
-if (createStickerBtn) {
-  createStickerBtn.addEventListener("click", () => {
-    if (stickerPicker) stickerPicker.click();
-  });
-}
-if (stickerPicker) {
-  stickerPicker.addEventListener("change", async () => {
-    const f = (stickerPicker.files && stickerPicker.files[0]) || null;
-    stickerPicker.value = "";
-    if (!f) return;
-    if (stickerNoteEl) stickerNoteEl.textContent = "Создаю стикер...";
-    try {
-      await createStickerFromFile(f);
-      if (stickerNoteEl) stickerNoteEl.textContent = "Готово!";
-      await renderStickerGrid();
-    } catch {
-      if (stickerNoteEl) stickerNoteEl.textContent = "Не удалось создать стикер.";
-    }
-  });
-}
 
 async function leaveVoiceIfNeeded() {
   if (state.voiceRoom) {
@@ -1280,27 +933,17 @@ async function openDM(peerUserId, peerName) {
   applyMode();
   guildNameEl.textContent = "Личные сообщения";
   channelNameEl.textContent = peerName;
-  await hydrateUsersByName();
   await renderMessages();
   renderMembers();
 }
 
 $("homeBtn").addEventListener("click", async () => {
-  await openHome("friends");
-});
-
-async function openHome(tab) {
   await leaveVoiceIfNeeded();
   state.mode = "home";
   applyMode();
-  setHomeTab(tab === "dms" ? "dms" : tab === "add" ? "add" : tab === "pending" ? "pending" : "friends");
-  await renderHome(tab === "dms" ? "dms" : tab === "add" ? "add" : tab === "pending" ? "pending" : "friends");
-  renderMembers();
-}
-
-$("menuFriends").addEventListener("click", async () => openHome("friends"));
-$("menuDMs").addEventListener("click", async () => openHome("dms"));
-$("menuAddFriend").addEventListener("click", async () => openHome("add"));
+  setHomeTab("friends");
+  await renderHome("friends");
+});
 
 $("tabFriends").addEventListener("click", async () => {
   setHomeTab("friends");
